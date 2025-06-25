@@ -1,5 +1,4 @@
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, field_validator, HttpUrl
 from fastapi.middleware.cors import CORSMiddleware

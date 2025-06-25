@@ -24,7 +24,7 @@ FastAPI 기반 웹 서버를 구동하기 위해 다음 Python 패키지들을 �
 pip install fastapi uvicorn python-multipart jinja2
 ```
 
-### 설치 명령어
+### 실행 명령어
 ```bash
 uvicorn main:app --reload
 ```
