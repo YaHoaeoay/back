@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator, HttpUrl
 from firebase_config import db
 from passlib.hash import bcrypt
+from passlib.context import CryptContext
 import re
 
 
@@ -156,7 +157,8 @@ async def signup(
             "old": form_data
         })
 
-    hashed_pw = bcrypt.hash(password)
+    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+    hashed_pw = pwd_context.hash(password)
 
     db.collection("users").add({
         "name": name,
@@ -167,9 +169,57 @@ async def signup(
         "phone_number": phone_number
     })
 
-    return RedirectResponse("/", status_code=302)
+    return RedirectResponse("/login", status_code=302)
 
 
 
+# 로그인
+@app.get("/login")
+def login_form(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
 
+
+@app.post("/login")
+def login(
+    request: Request, 
+    id: str = Form(...), 
+    password: str = Form(...)
+    ):
+
+    users = db.collection("users").where("id", "==", id).get()
+    if not users:
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "존재하지 않는 아이디입니다."
+        })
+
+    user_data = users[0].to_dict()
+    if not bcrypt.verify(password, user_data["password"]):
+        return templates.TemplateResponse("login.html", {
+            "request": request,
+            "error": "비밀번호가 일치하지 않습니다."
+        })
+
+    # 로그인 성공 → 세션 쿠키 설정
+    response = RedirectResponse("/", status_code=302)
+    response.set_cookie(key="user_id", value=id)
+    return response
+
+
+# 로그아웃
+@app.get("/logout")
+def logout():
+    response = RedirectResponse("/", status_code=302)
+    response.delete_cookie("user_id")
+    return response
+
+
+
+# # 로그인 상태 확인
+# @app.get("/profile")
+# def profile(request: Request):
+#     user_id = request.cookies.get("user_id")
+#     if not user_id:
+#         return RedirectResponse("/login", status_code=302)
+#     return templates.TemplateResponse("profile.html", {"request": request, "id": user_id})
 
