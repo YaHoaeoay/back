@@ -2,7 +2,9 @@ from fastapi import FastAPI, Request, Form
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field, field_validator, HttpUrl
 from fastapi.middleware.cors import CORSMiddleware
+from firebase_config import db
 import re
+
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -75,6 +77,15 @@ def submit_store(
                 "google_map_url" : google_map_url,
                 "product" : product
             }
+        })
+    
+    try:
+        db.collection("stores").add(store.model_dump(mode="json"))
+    except Exception as e:
+        return templates.TemplateResponse("store_form.html", {
+            "request": request,
+            "error": f"Firestore 저장 오류: {str(e)}",
+            "old": store.model_dump()
         })
 
     return templates.TemplateResponse("store_detail.html", {"request" : request, "store" : store})

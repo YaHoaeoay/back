@@ -27,3 +27,6 @@ Thumbs.db
 
 # FastAPI / Uvicorn reload artifacts
 *.reload
+
+# Firebase 비공개 키
+firebase_key.json
