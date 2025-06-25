@@ -1,0 +1,40 @@
+<h2>회원가입</h2>
+
+<form method="post">
+  <input type="text" name="name" placeholder="이름" value="{{ old.name if old else '' }}" required><br>
+  <input type="text" name="nickname" placeholder="닉네임" required><br>
+  <input type="text" name="id" placeholder="아이디" required><br>
+  <input type="password" name="password" placeholder="비밀번호" required><br>
+  <input type="password" name="password_check" placeholder="비밀번호 확인" required><br>
+
+  <label for="birthday_display">생년월일</label><br>
+  <input type="text" id="birthday_display" placeholder="000000-0******" maxlength="14" disabled style="background-color: #eee;"><br>
+  <input type="text" id="birthday_input" name="birthday" placeholder="YYMMDD-X" pattern="[0-9]{6}-[0-9]{1}" maxlength="8" required><br>
+  <input type="text" name="phone_number" placeholder="전화번호 (예: 010-1234-5678)" pattern="\d{3}-\d{4}-\d{4}" required><br>
+
+  <button type="submit">회원가입</button>
+
+  {% if error %}
+    <p style="color:red;">{{ error }}</p>
+  {% endif %}
+</form>
+
+<script>
+  const birthdayInput = document.getElementById("birthday_input");
+  const birthdayDisplay = document.getElementById("birthday_display");
+
+  birthdayInput.addEventListener("input", () => {
+    const raw = birthdayInput.value.replace(/[^0-9\-]/g, "");  // 숫자, -만 허용
+    const match = raw.match(/^(\d{0,6})(-?)(\d{0,1})/);
+
+    if (match) {
+      const part1 = match[1];
+      const dash = match[2] || (part1.length === 6 ? "-" : "");
+      const part2 = match[3] || "";
+
+      birthdayDisplay.value = `${part1}${dash}${part2}${part2 ? "******" : ""}`;
+    } else {
+      birthdayDisplay.value = "000000-0******";
+    }
+  });
+</script>

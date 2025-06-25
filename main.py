@@ -1,8 +1,10 @@
 from fastapi import FastAPI, Request, Form
+from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, Field, field_validator, HttpUrl
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field, field_validator, HttpUrl
 from firebase_config import db
+from passlib.hash import bcrypt
 import re
 
 
@@ -89,6 +91,85 @@ def submit_store(
         })
 
     return templates.TemplateResponse("store_detail.html", {"request" : request, "store" : store})
+
+
+# 회원가입
+@app.get("/signup")
+def signup_form(request: Request):
+    return templates.TemplateResponse("signup.html", {"request": request})
+
+
+@app.post("/signup")
+async def signup(
+    request: Request, 
+    name: str = Form(...),
+    nickname: str = Form(...),
+    id: str = Form(...), 
+    password: str = Form(...),
+    password_check: str = Form(...),
+    birthday: str = Form(...),
+    phone_number: str = Form(...)
+    ):
+
+    form_data = await request.form()
+
+    # 비밀번호 일치 확인
+    if password != password_check:
+        return templates.TemplateResponse("signup.html", {
+            "request": request,
+            "error": "비밀번호가 일치하지 않습니다.",
+            "old": form_data
+        })
+
+
+    # 주민번호 앞자리 형식 검사: YYMMDD-X
+    if not re.match(r"^\d{6}-\d{1}$", birthday):
+        return templates.TemplateResponse("signup.html", {
+            "request": request,
+            "error": "생년월일 형식이 올바르지 않습니다. 예: 990101-1",
+            "old": form_data
+        })
+
+    # 전화번호 형식 검사: 000-0000-0000
+    if not re.match(r"^\d{3}-\d{4}-\d{4}$", phone_number):
+        return templates.TemplateResponse("signup.html", {
+            "request": request,
+            "error": "전화번호 형식이 올바르지 않습니다. 예: 010-1234-5678",
+            "old": form_data
+        })
+
+    # 닉네임 중복 검사
+    user_ref = db.collection("users").where("nickname", "==", nickname).get()
+    if user_ref:
+        return templates.TemplateResponse("signup.html", {
+            "request": request,
+            "error": "이미 가입된 닉네임입니다.",
+            "old": form_data
+        })
+    
+    # 아이디 중복 검사
+    user_ref = db.collection("users").where("id", "==", id).get()
+    if user_ref:
+        return templates.TemplateResponse("signup.html", {
+            "request": request,
+            "error": "이미 가입된 아이디입니다.",
+            "old": form_data
+        })
+
+    hashed_pw = bcrypt.hash(password)
+
+    db.collection("users").add({
+        "name": name,
+        "nickname": nickname,
+        "id": id,
+        "password": hashed_pw,
+        "birthday": birthday + "******",  # 뒤는 마스킹
+        "phone_number": phone_number
+    })
+
+    return RedirectResponse("/", status_code=302)
+
+
 
 
 
