@@ -52,7 +52,7 @@ def submit_store(
     request : Request,
     name : str = Form(..., description="가게 이름"),
     introduce : str = Form(..., max_length=1000, description="가게를 소개하는 글 (최소 30자 이상)"),
-    location : str = Form(..., description="가게 위치"),
+    location : str = Form(..., description="가게 위치 ('경상북도 의성군 **면 ...' 형식으로 작성해주세요.)"),
     google_map_url : HttpUrl = Form(..., description="구글 지도 링크"),
     product : str = Form(..., description="가게 대표 상품") 
 ):
