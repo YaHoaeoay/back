@@ -6,10 +6,29 @@ from pydantic import BaseModel, Field, field_validator, HttpUrl
 from firebase_config import db
 from passlib.hash import bcrypt
 from passlib.context import CryptContext
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 import re
 
 
 app = FastAPI()
+
+# 로그인 체크용 미들웨어 정의
+class AuthMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        protected_paths = ["/profile", "/store/form"]  # 로그인 필요 경로
+
+        if request.url.path in protected_paths:
+            user_id = request.cookies.get("user_id")
+            if not user_id:
+                return RedirectResponse("/login", status_code=302)
+
+        response = await call_next(request)
+        return response
+
+# 미들웨어 등록
+app.add_middleware(AuthMiddleware)
+
 templates = Jinja2Templates(directory="templates")
 
 app.add_middleware(
@@ -176,6 +195,10 @@ async def signup(
 # 로그인
 @app.get("/login")
 def login_form(request: Request):
+    user_id = request.cookies.get("user_id")
+    if user_id:
+        # 이미 로그인 되어 있으면 홈으로
+        return RedirectResponse("/", status_code=302)
     return templates.TemplateResponse("login.html", {"request": request})
 
 
@@ -215,11 +238,23 @@ def logout():
 
 
 
-# # 로그인 상태 확인
-# @app.get("/profile")
-# def profile(request: Request):
-#     user_id = request.cookies.get("user_id")
-#     if not user_id:
-#         return RedirectResponse("/login", status_code=302)
-#     return templates.TemplateResponse("profile.html", {"request": request, "id": user_id})
+# 로그인 상태 확인
+@app.get("/profile")
+def profile(request: Request):
+    user_id = request.cookies.get("user_id")
+    if not user_id:
+        return RedirectResponse("/login", status_code=302)
+
+    users = db.collection("users").where("id", "==", user_id).get()
+    if not users:
+        return RedirectResponse("/login", status_code=302)
+
+    user_data = users[0].to_dict()
+
+    return templates.TemplateResponse("profile.html", {
+        "request": request,
+        "id": user_id,
+        "user": user_data  # <- signup에 유저 정보 전달
+    })
+
 
