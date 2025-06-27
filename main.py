@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator, HttpUrl
@@ -47,8 +47,8 @@ class Store(BaseModel):
     name : str = Field(..., description="가게 이름")
     introduce : str = Field(..., max_length=1000, description="가게를 소개하는 글 (최소 30자 이상)")
     location : str = Field(..., description="가게 위치")
-    google_map_url : HttpUrl = Field(..., description="구글 지도 링크")
-    product : str = Field(..., description="가게 대표 상품")
+    # google_map_url : HttpUrl = Field(..., description="구글 지도 링크")
+    # product : str = Field(..., description="가게 대표 상품")
 
     @field_validator('location')
     @classmethod
@@ -58,13 +58,13 @@ class Store(BaseModel):
             raise ValueError('주소는 "경상북도 의성군 **면 ..." 형식이어야 합니다.')
         return v
 
-    @field_validator('google_map_url')
-    @classmethod
-    def validate_google_map_url(cls, v: HttpUrl):
-        # 구글 맵 URL인지 확인
-        if not ("google.com" in v.host or "goo.gl" in v.host):
-            raise ValueError("구글 지도 링크여야 합니다 (예: https://www.google.com/maps/...)")
-        return v
+    # @field_validator('google_map_url')
+    # @classmethod
+    # def validate_google_map_url(cls, v: HttpUrl):
+    #     # 구글 맵 URL인지 확인
+    #     if not ("google.com" in v.host or "goo.gl" in v.host):
+    #         raise ValueError("구글 지도 링크여야 합니다 (예: https://www.google.com/maps/...)")
+    #     return v
 
 
 @app.get("/store/form")
@@ -77,16 +77,16 @@ def submit_store(
     name : str = Form(..., description="가게 이름"),
     introduce : str = Form(..., max_length=1000, description="가게를 소개하는 글 (최소 30자 이상)"),
     location : str = Form(..., description="가게 위치 ('경상북도 의성군 **면 ...' 형식으로 작성해주세요.)"),
-    google_map_url : HttpUrl = Form(..., description="구글 지도 링크"),
-    product : str = Form(..., description="가게 대표 상품") 
+    # google_map_url : HttpUrl = Form(..., description="구글 지도 링크"),
+    # product : str = Form(..., description="가게 대표 상품") 
 ):
     try:
         store = Store(
             name = name,
             introduce = introduce,
             location = location,
-            google_map_url = google_map_url,
-            product = product
+            # google_map_url = google_map_url,
+            # product = product
         )
     except Exception as e:
         return templates.TemplateResponse("store_form.html", {
@@ -96,13 +96,22 @@ def submit_store(
                 "name" : name,
                 "introduce" : introduce,
                 "location" : location,
-                "google_map_url" : google_map_url,
-                "product" : product
+                # "google_map_url" : google_map_url,
+                # "product" : product
             }
         })
     
     try:
-        db.collection("stores").add(store.model_dump(mode="json"))
+        user_id = request.cookies.get("user_id")
+        db.collection("stores").add({
+            **store.model_dump(mode="json"),
+            "user_id": user_id
+        })
+
+        # 작성자 닉네임 불러오기
+        user_docs = db.collection("users").where("id", "==", user_id).get()
+        nickname = user_docs[0].to_dict().get("nickname", "알 수 없음") if user_docs else "알 수 없음"
+
     except Exception as e:
         return templates.TemplateResponse("store_form.html", {
             "request": request,
@@ -110,7 +119,11 @@ def submit_store(
             "old": store.model_dump()
         })
 
-    return templates.TemplateResponse("store_detail.html", {"request" : request, "store" : store})
+    return templates.TemplateResponse("store_detail.html", {
+        "request": request,
+        "store": store,
+        "nickname": nickname  # ✨ 추가됨
+    })
 
 
 # 회원가입
@@ -256,5 +269,41 @@ def profile(request: Request):
         "id": user_id,
         "user": user_data  # <- signup에 유저 정보 전달
     })
+
+
+@app.get("/api/profile")
+def get_profile(request: Request):
+    user_id = request.cookies.get("user_id")
+    if not user_id:
+        return JSONResponse(status_code=401, content={"error": "Not logged in"})
+
+    users = db.collection("users").where("id", "==", user_id).get()
+    if not users:
+        return JSONResponse(status_code=404, content={"error": "User not found"})
+
+    user_data = users[0].to_dict()
+    return JSONResponse(content={"nickname": user_data["nickname"]})
+
+
+@app.get("/my-posts")
+def my_posts(request: Request):
+    user_id = request.cookies.get("user_id")
+    if not user_id:
+        return RedirectResponse("/login", status_code=302)
+
+    user_docs = db.collection("users").where("id", "==", user_id).get()
+    if not user_docs:
+        return RedirectResponse("/login", status_code=302)
+    user_data = user_docs[0].to_dict()
+
+    posts = db.collection("stores").where("user_id", "==", user_id).get()
+    post_list = [doc.to_dict() for doc in posts]
+
+    return templates.TemplateResponse("my_posts.html", {
+        "request": request,
+        "nickname": user_data.get("nickname", "사용자"),
+        "posts": post_list
+    })
+
 
 
