@@ -47,8 +47,10 @@ class Store(BaseModel):
     name : str = Field(..., description="가게 이름")
     introduce : str = Field(..., max_length=1000, description="가게를 소개하는 글 (최소 30자 이상)")
     location : str = Field(..., description="가게 위치")
-    # google_map_url : HttpUrl = Field(..., description="구글 지도 링크")
-    # product : str = Field(..., description="가게 대표 상품")
+    google_map_url : HttpUrl = Field(..., description="구글 지도 링크")
+    product : str = Field(..., description="가게 대표 상품")
+    time: str = Field(..., description="운영 시간 (예: 09시~22시)")
+    rest: str = Field(..., description="휴무일 (예: 매주 화요일)")
 
     @field_validator('location')
     @classmethod
@@ -58,13 +60,13 @@ class Store(BaseModel):
             raise ValueError('주소는 "경상북도 의성군 **면 ..." 형식이어야 합니다.')
         return v
 
-    # @field_validator('google_map_url')
-    # @classmethod
-    # def validate_google_map_url(cls, v: HttpUrl):
-    #     # 구글 맵 URL인지 확인
-    #     if not ("google.com" in v.host or "goo.gl" in v.host):
-    #         raise ValueError("구글 지도 링크여야 합니다 (예: https://www.google.com/maps/...)")
-    #     return v
+    @field_validator('google_map_url')
+    @classmethod
+    def validate_google_map_url(cls, v: HttpUrl):
+        # 구글 맵 URL인지 확인
+        if not ("google.com" in v.host or "goo.gl" in v.host):
+            raise ValueError("구글 지도 링크여야 합니다 (예: https://www.google.com/maps/...)")
+        return v
 
 
 @app.get("/store/form")
@@ -77,16 +79,20 @@ def submit_store(
     name : str = Form(..., description="가게 이름"),
     introduce : str = Form(..., max_length=1000, description="가게를 소개하는 글 (최소 30자 이상)"),
     location : str = Form(..., description="가게 위치 ('경상북도 의성군 **면 ...' 형식으로 작성해주세요.)"),
-    # google_map_url : HttpUrl = Form(..., description="구글 지도 링크"),
-    # product : str = Form(..., description="가게 대표 상품") 
+    google_map_url : HttpUrl = Form(..., description="구글 지도 링크"),
+    product : str = Form(..., description="가게 대표 상품") ,
+    time: str = Form(..., description="가게 운영 시간"),
+    rest: str = Form(..., description="휴무일")
 ):
     try:
         store = Store(
             name = name,
             introduce = introduce,
             location = location,
-            # google_map_url = google_map_url,
-            # product = product
+            google_map_url = google_map_url,
+            product = product,
+            time=time,
+            rest=rest
         )
     except Exception as e:
         return templates.TemplateResponse("store_form.html", {
@@ -96,8 +102,10 @@ def submit_store(
                 "name" : name,
                 "introduce" : introduce,
                 "location" : location,
-                # "google_map_url" : google_map_url,
-                # "product" : product
+                "google_map_url" : google_map_url,
+                "product" : product,
+                "time": time,
+                "rest": rest
             }
         })
     
@@ -122,7 +130,7 @@ def submit_store(
     return templates.TemplateResponse("store_detail.html", {
         "request": request,
         "store": store,
-        "nickname": nickname  # ✨ 추가됨
+        "nickname": nickname 
     })
 
 
