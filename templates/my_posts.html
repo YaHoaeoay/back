@@ -1,20 +1,23 @@
-<!-- templates/my_posts.html -->
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>내 게시물</title>
+    <title>내 게시글</title>
 </head>
 <body>
-    <h1>{{ nickname }}님의 전단지</h1>
-    <ul>
-        {% for post in posts %}
-            <li>
-                <h3>{{ post.name }}</h3>
-                <p>{{ post.introduce }}</p>
-                <p><strong>위치:</strong> {{ post.location }}</p>
-            </li>
-        {% endfor %}
-    </ul>
+    <h1>{{ nickname }}님의 게시글 목록</h1>
+
+    {% for post in posts %}
+        <div>
+            <h2>{{ post.name }}</h2>
+            <p>소개: {{ post.introduce }}</p>
+            <p>위치: {{ post.location }}</p>
+
+            <form method="post" action="/my-posts/delete/{{ post.id }}" onsubmit="return confirm('정말 삭제하시겠습니까?');">
+                <button type="submit">삭제</button>
+            </form>
+
+            <hr>
+        </div>
+    {% endfor %}
 </body>
 </html>

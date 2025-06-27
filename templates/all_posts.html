@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>모든 가게 게시글</title>
+</head>
+<body>
+    <h1>모든 사용자 게시글</h1>
+    <ul>
+        {% for post in posts %}
+            <li>
+                <strong>{{ post.name }}</strong><br>
+                소개: {{ post.introduce }}<br>
+                위치: {{ post.location }}<br>
+                작성자: {{ post.nickname }}<br>
+                <hr>
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="/">홈으로</a>
+</body>
+</html>

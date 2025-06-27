@@ -297,7 +297,7 @@ def my_posts(request: Request):
     user_data = user_docs[0].to_dict()
 
     posts = db.collection("stores").where("user_id", "==", user_id).get()
-    post_list = [doc.to_dict() for doc in posts]
+    post_list = [{"id": doc.id, **doc.to_dict()} for doc in posts]  # ← 문서 ID 포함
 
     return templates.TemplateResponse("my_posts.html", {
         "request": request,
@@ -306,4 +306,46 @@ def my_posts(request: Request):
     })
 
 
+@app.post("/my-posts/delete/{post_id}")
+def delete_my_post(post_id: str, request: Request):
+    user_id = request.cookies.get("user_id")
+    if not user_id:
+        return RedirectResponse("/login", status_code=302)
+
+    post_ref = db.collection("stores").document(post_id)
+    post = post_ref.get()
+
+    if not post.exists:
+        return JSONResponse(status_code=404, content={"error": "게시글이 존재하지 않습니다."})
+
+    post_data = post.to_dict()
+    if post_data.get("user_id") != user_id:
+        return JSONResponse(status_code=403, content={"error": "삭제 권한이 없습니다."})
+
+    post_ref.delete()
+    return RedirectResponse("/my-posts", status_code=302)
+
+
+
+
+@app.get("/posts")
+def all_posts(request: Request):
+    posts = db.collection("stores").get()
+    post_list = []
+
+    for doc in posts:
+        post = doc.to_dict()
+
+        # 작성자 닉네임 조회
+        user_id = post.get("user_id")
+        user_docs = db.collection("users").where("id", "==", user_id).get()
+        nickname = user_docs[0].to_dict().get("nickname", "알 수 없음") if user_docs else "알 수 없음"
+        post["nickname"] = nickname
+
+        post_list.append(post)
+
+    return templates.TemplateResponse("all_posts.html", {
+        "request": request,
+        "posts": post_list
+    })
 
